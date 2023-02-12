@@ -1,2 +1,0 @@
-# rust
-Created with CodeSandbox
