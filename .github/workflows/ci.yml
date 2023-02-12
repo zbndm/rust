@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+    branches: 
+      - main
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  test:
+    name: Test
+    if: ${{ !startsWith(github.event.pull_request.title, 'build(version)') }}
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  deploy:
+    name: Staging
+    needs: test
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.user.login == 'hasundue' ||
+      github.event.pull_request.user.login == 'denopendabot[bot]'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+
+  integration:
+    name: Integration
+    needs: deploy
+    uses: ./.github/workflows/integration.yml
+    secrets: inherit
+
+  delivery:
+    name: Dispatch CD
+    if: github.event_name == 'workflow_dispatch'
+    needs: integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: CD
+          token: ${{ secrets.GH_TOKEN }}
+          ref: main
+
+  skip:
+    name: Skip CI
+    if: >-
+      github.repository_owner == 'hasundue' &&
+      startsWith(github.event.pull_request.title, 'build(version)')
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit

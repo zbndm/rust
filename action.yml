@@ -1,0 +1,109 @@
+name: Denopendabot
+
+description: Keeps your Deno projects up-to-date
+
+branding:
+  icon: 'refresh-cw'
+  color: 'gray-dark'
+
+inputs:
+  mode:
+    description: Run mode ('action' or 'app')
+    required: true
+    default: action
+
+  token:
+    description: Access token authorized to run workflows (for Action)
+    required: false
+
+  user-token:
+    description: Personal access token authorized to update workflows (for Action)
+    required: false
+
+  repository:
+    description: Repository to update dependencies
+    required: true
+    default: ${{ github.repository }}
+
+  base-branch:
+    description: Branch to update
+    required: true
+    default: main
+
+  working-branch:
+    description: Working branch for Denopendabot
+    required: true
+    default: denopendabot
+
+  root:
+    description: Path to the project root (not prefixed with './')
+    required: false
+
+  include:
+    description: Specify Files to update (space-separated)
+    required: false
+
+  exclude:
+    description: Files to exclude (space-separated)
+    required: false
+
+  labels:
+    description: Labels for the pull request (space-separated)
+    required: false
+
+  release:
+    description: Bump the project version to this value for a release
+    required: false
+  
+  auto-merge:
+    description: Merge a pull request automaticaly ('any' or null, for App)
+    required: false
+
+outputs:
+  updated:
+    description: true if updated
+    value: ${{ steps.run.outputs.updated }}
+
+runs:
+  using: composite
+
+  steps:
+    - name: Run Denopendabot GitHub App
+      if: ${{ inputs.mode == 'app' }}
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        event-type: denopendabot-run
+        client-payload: >
+          { 
+            "baseBranch": "${{ inputs.base-branch }}",
+            "workingBranch": "${{ inputs.working-branch }}",
+            "root": "${{ inputs.root }}",
+            "include": "${{ inputs.include }}",
+            "exclude": "${{ inputs.exclude }}",
+            "labels": "${{ inputs.labels }}",
+            "release": "${{ inputs.release }}",
+            "autoMerge": "${{ inputs.auto-merge }}"
+          }
+
+    - name: Setup Deno
+      if: ${{ inputs.mode == 'action' }}
+      uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1.29.4 # @denopendabot denoland/deno
+
+    - name: Run Denopendabot from the CLI
+      if: ${{ inputs.mode == 'action' }}
+      run: >
+        deno run -q --allow-env --allow-net --allow-write
+        https://deno.land/x/denopendabot@0.15.0/cli.ts
+        ${{ inputs.repository }}
+        --base-branch ${{ inputs.base-branch }}
+        --working-branch ${{ inputs.working-branch }}
+        --token ${{ inputs.token || github.token }}
+        ${{ inputs.root && format('--root {0}', inputs.root) }}
+        ${{ inputs.user-token && format('--user-token {0}', inputs.user-token) }}
+        ${{ inputs.include && format('--include {0}', inputs.include) }}
+        ${{ inputs.exclude && format('--exclude {0}', inputs.exclude) }}
+        ${{ inputs.release && format('--release {0}', inputs.release) }}
+        ${{ inputs.labels && format('--labels {0}', inputs.labels) }}
+      shell: bash

@@ -1,0 +1,28 @@
+name: Deploy
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  deployment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write # Needed for auth with Deno Deploy
+      contents: read # Needed to clone the repository
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.3.0
+
+      - name: Upload to Deno Deploy
+        id: deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: denopendabot
+          entrypoint: ./app.ts

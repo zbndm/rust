@@ -1,0 +1,23 @@
+name: Denopendabot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  run:
+    name: Run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.3.0
+
+      - name: Run App
+        uses: ./
+        with:
+          mode: app
+          exclude: integration/src/deps.ts
+          auto-merge: any
+          labels: dependencies

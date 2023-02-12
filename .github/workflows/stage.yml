@@ -1,0 +1,47 @@
+name: CI/CD
+
+on:
+  push:
+    branches: 
+      - main
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  stage:
+    name: Stage
+    if: >-
+      github.repository_owner == 'hasundue' &&
+      !startsWith(github.event.head_commit.message, 'build(version)')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.3.0
+
+      - name: Push
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: staging
+          force: true
+
+      - name: Dispatch CI
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: CI
+          token: ${{ secrets.GH_TOKEN }}
+          ref: staging
+
+  release:
+    name: Dispatch CD
+    if: >-
+      github.repository_owner == 'hasundue' &&
+      startsWith(github.event.head_commit.message, 'build(version)')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: CD
+          token: ${{ secrets.GH_TOKEN }}
+          ref: main
